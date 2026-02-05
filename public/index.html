@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SD-WAN Network Speed Test</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>SD-WAN Network Speed Test</h1>
+            <p class="subtitle" id="server-info">Loading server information...</p>
+        </header>
+
+        <!-- Configuration Panel (Initial State) -->
+        <div id="config-panel" class="config-panel">
+            <div class="config-row">
+                <div class="config-group">
+                    <label>Transport Path</label>
+                    <div class="button-group">
+                        <button class="btn gold active" data-transport="gold">
+                            Gold
+                            <div class="port-indicator">Port 8888</div>
+                        </button>
+                        <button class="btn silver" data-transport="silver">
+                            Silver
+                            <div class="port-indicator">Port 8889</div>
+                        </button>
+                        <button class="btn both" data-transport="both">
+                            Both
+                            <div class="port-indicator">Sequential</div>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="config-group">
+                    <label>Test Mode</label>
+                    <div class="button-group">
+                        <button class="btn active" data-mode="basic">Basic</button>
+                        <button class="btn" data-mode="detailed">Detailed</button>
+                        <button class="btn" data-mode="ludacris">Ludacris</button>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="start-btn" id="start-test-btn">START TEST</button>
+            
+            <div class="warning">
+                <strong>Note:</strong> All test traffic flows through encrypted SD-WAN tunnels. Transport selection is enforced by SD-WAN policy based on destination port.
+            </div>
+        </div>
+
+        <!-- Test Mode Information Cards -->
+        <div class="info-grid" id="info-grid">
+            <div class="info-card">
+                <h3>Basic Mode</h3>
+                <ul>
+                    <li>Download throughput (single + multi-stream)</li>
+                    <li>Upload throughput</li>
+                    <li>Idle latency and jitter</li>
+                    <li>High-level path visibility</li>
+                </ul>
+                <span class="duration-badge">~30-60 seconds</span>
+            </div>
+            
+            <div class="info-card">
+                <h3>Detailed Mode</h3>
+                <ul>
+                    <li>Everything in Basic mode</li>
+                    <li>Packet loss estimation</li>
+                    <li>Loaded latency (bufferbloat)</li>
+                    <li>TCP ramp-up analysis</li>
+                    <li>Parallel stream testing (1/4/8)</li>
+                </ul>
+                <span class="duration-badge">~2-4 minutes</span>
+            </div>
+            
+            <div class="info-card">
+                <h3>Ludacris Mode</h3>
+                <ul>
+                    <li>Everything in Detailed mode</li>
+                    <li>Sustained throughput soak tests</li>
+                    <li>MTU/PMTUD symptom detection</li>
+                    <li>Server-side path analysis</li>
+                    <li>Automatic Gold vs Silver A/B</li>
+                </ul>
+                <span class="duration-badge">~5-10+ minutes</span>
+            </div>
+        </div>
+
+        <!-- Upload Method Selection (Hidden Initially) -->
+        <div id="upload-panel" class="upload-panel" style="display: none;">
+            <div class="section-title">Upload Test Method</div>
+            <div class="upload-options">
+                <div class="upload-option active" data-upload-method="synthetic">
+                    <div class="upload-option-icon">🎲</div>
+                    <div class="upload-option-title">Synthetic Data</div>
+                    <div class="upload-option-desc">Generate random data on-the-fly</div>
+                </div>
+                
+                <div class="upload-option" data-upload-method="file">
+                    <div class="upload-option-icon">📁</div>
+                    <div class="upload-option-title">Real File Upload</div>
+                    <div class="upload-option-desc">Use an actual file (max 250 MB)</div>
+                </div>
+            </div>
+
+            <!-- Drag and Drop Zone -->
+            <div id="dropzone" class="dropzone" style="display: none;">
+                <div class="dropzone-icon">📤</div>
+                <div class="dropzone-title">Drag & Drop File Here</div>
+                <div class="dropzone-subtitle">or click to browse your files</div>
+                <input type="file" id="file-input" style="display: none;" accept="*/*">
+                <button class="dropzone-button" id="browse-btn">Browse Files</button>
+                
+                <div class="file-restrictions">
+                    <strong>File Size Limit:</strong> 250 MB maximum<br>
+                    Files are uploaded to test network performance only and are <strong>deleted immediately</strong> after the test completes.
+                </div>
+            </div>
+
+            <!-- File Selected State -->
+            <div id="file-selected" class="file-selected">
+                <div class="file-info">
+                    <div class="file-icon">📄</div>
+                    <div class="file-details">
+                        <div class="file-name" id="selected-file-name">No file selected</div>
+                        <div class="file-size" id="selected-file-size"></div>
+                    </div>
+                </div>
+                <div class="info">
+                    <strong>Privacy Notice:</strong> This file will be uploaded to test your network speed and will be automatically deleted from the server immediately after the upload test completes.
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Section (Hidden Initially) -->
+        <div id="progress-panel" class="progress-section" style="display: none;">
+            <div class="current-test">
+                <span class="live-indicator"></span>
+                <span id="current-test-name">Initializing...</span>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            
+            <div class="progress-steps" id="progress-steps">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Live Metrics -->
+            <div class="metrics-grid" id="live-metrics">
+                <div class="metric-card">
+                    <div class="metric-label">Download Speed</div>
+                    <div class="metric-value metric-live" id="download-speed">
+                        --<span class="metric-unit">Mbps</span>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Upload Speed</div>
+                    <div class="metric-value" id="upload-speed">
+                        --<span class="metric-unit">Mbps</span>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Latency (Idle)</div>
+                    <div class="metric-value" id="latency-idle">
+                        --<span class="metric-unit">ms</span>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-label">Jitter</div>
+                    <div class="metric-value" id="jitter">
+                        --<span class="metric-unit">ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Log -->
+            <div class="test-log" id="test-log">
+                <div class="log-entry info">Test initialized...</div>
+            </div>
+            
+            <button class="cancel-btn" id="cancel-test-btn">CANCEL TEST</button>
+        </div>
+
+        <!-- Results Section (Hidden Initially) -->
+        <div id="results-panel" class="results-panel" style="display: none;">
+            <div class="result-header">
+                <div class="result-info" id="result-info">
+                    <!-- Populated dynamically -->
+                </div>
+                <span class="transport-badge" id="result-transport-badge">Gold Transport • Port 8888</span>
+            </div>
+
+            <!-- Alerts/Warnings -->
+            <div id="result-alerts"></div>
+
+            <!-- Summary Metrics -->
+            <div class="summary-grid" id="summary-metrics">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Detailed Sections -->
+            <div id="detailed-results">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                <button class="btn btn-primary" id="new-test-btn">RUN ANOTHER TEST</button>
+                <button class="btn btn-secondary" id="export-json-btn">EXPORT RESULTS (JSON)</button>
+                <button class="btn btn-secondary" id="compare-btn" style="display: none;">COMPARE TRANSPORTS</button>
+            </div>
+        </div>
+
+        <!-- Comparison Panel (Hidden Initially) -->
+        <div id="comparison-panel" class="comparison-panel" style="display: none;">
+            <h2>Transport Comparison: Gold vs Silver</h2>
+            <div id="comparison-content">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" id="new-comparison-btn">RUN NEW COMPARISON</button>
+                <button class="btn btn-secondary" id="export-comparison-btn">EXPORT COMPARISON (JSON)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/test-engine.js"></script>
+    <script src="/js/ui-controller.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

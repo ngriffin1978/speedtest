@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  speedtest:
+    build: .
+    image: sdwan-speedtest:latest
+    container_name: sdwan-speedtest
+    
+    ports:
+      # Gold transport
+      - "8888:8888"
+      # Silver transport
+      - "8889:8889"
+    
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - MAX_CONCURRENT_TESTS=20
+      - MAX_TEST_DURATION=600
+      - MAX_UPLOAD_SIZE=262144000
+      - RATE_LIMIT_WINDOW=60000
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - DATA_CENTER_ID=DC1-SJC
+    
+    volumes:
+      # Mount logs directory (optional)
+      - ./logs:/app/logs
+    
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem (except temp directories)
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=512M
+      - /app/logs:noexec,nosuid,size=100M
+
+networks:
+  default:
+    name: sdwan-speedtest-network
