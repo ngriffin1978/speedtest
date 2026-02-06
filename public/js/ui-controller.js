@@ -288,7 +288,10 @@ class UIController {
     updateMetric(metricId, value) {
         const element = document.getElementById(metricId);
         if (element) {
-            element.innerHTML = `${value}<span class="metric-unit">Mbps</span>`;
+            // Preserve the original unit from the element
+            const unitSpan = element.querySelector('.metric-unit');
+            const unit = unitSpan ? unitSpan.textContent : 'Mbps';
+            element.innerHTML = `${value}<span class="metric-unit">${unit}</span>`;
         }
     }
 
