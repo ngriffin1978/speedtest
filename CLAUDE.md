@@ -15,11 +15,26 @@ npm run dev
 # Run in production mode
 npm start
 
-# Run tests
+# Run tests (unit tests - currently no unit tests exist)
 npm test
 
-# Run tests with coverage
-npm test -- --coverage
+# Run E2E tests (Playwright)
+npm run test:e2e
+
+# Run E2E tests in headed mode (visible browser)
+npm run test:e2e:headed
+
+# Run E2E tests with interactive UI
+npm run test:e2e:ui
+
+# View E2E test report
+npm run test:e2e:report
+
+# Run a specific E2E test file
+npx playwright test tests/e2e/dual-port.spec.js
+
+# Run tests in a specific browser
+npx playwright test --project=chromium
 
 # Lint code
 npm run lint
@@ -27,6 +42,8 @@ npm run lint
 # Fix linting issues
 npm run lint -- --fix
 ```
+
+**Note on Testing:** This project currently uses only E2E tests (Playwright) to validate the full stack including dual-port behavior, WebSocket connections, and transport detection. Unit tests (Jest) are configured but not yet implemented.
 
 ### Docker Development
 ```bash
