@@ -25,19 +25,32 @@ function generateChunk(size = 65536) {
  * GET /api/download/single?duration=20&chunkSize=65536
  */
 router.get('/single', (req, res) => {
-    const duration = Math.min(parseInt(req.query.duration) || 20, 120); // max 120 seconds
+    const requestedDuration = parseInt(req.query.duration) || 20;
+
+    // Validate duration is positive and within limits
+    if (requestedDuration < 1) {
+        return res.status(400).json({
+            error: 'Invalid duration',
+            message: 'Duration must be at least 1 second'
+        });
+    }
+
+    const duration = Math.min(requestedDuration, 120); // max 120 seconds
     const chunkSize = Math.min(parseInt(req.query.chunkSize) || 65536, 1048576); // max 1MB chunks
-    
+
     const startTime = Date.now();
     let bytesTransferred = 0;
-    
+
     logger.info('Starting single-stream download test', {
         transport: req.transport,
         duration,
         chunkSize,
         clientIp: req.ip
     });
-    
+
+    // Increase max listeners for compression streams to avoid warnings during concurrent tests
+    res.setMaxListeners(20);
+
     // Set headers for streaming
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Cache-Control', 'no-cache');
