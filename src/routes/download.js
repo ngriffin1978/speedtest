@@ -57,13 +57,18 @@ router.get('/single', (req, res) => {
     res.setHeader('X-Test-Type', 'download-single');
     
     // Stream data until duration expires
-    const interval = setInterval(() => {
+    let isPaused = false;
+
+    const sendChunk = () => {
+        // Skip if paused due to backpressure
+        if (isPaused) return;
+
         const elapsed = (Date.now() - startTime) / 1000;
-        
+
         if (elapsed >= duration) {
             clearInterval(interval);
             res.end();
-            
+
             logger.logTestResult({
                 testType: 'download-single',
                 transport: req.transport,
@@ -73,17 +78,20 @@ router.get('/single', (req, res) => {
             });
             return;
         }
-        
+
         const chunk = generateChunk(chunkSize);
         bytesTransferred += chunk.length;
-        
+
         if (!res.write(chunk)) {
-            // Backpressure - pause until drained
+            // Backpressure - pause sending until drain
+            isPaused = true;
             res.once('drain', () => {
-                // Resume on next tick
+                isPaused = false;
             });
         }
-    }, 10); // Send chunks every 10ms
+    };
+
+    const interval = setInterval(sendChunk, 10); // Send chunks every 10ms
     
     // Handle client disconnect
     req.on('close', () => {
