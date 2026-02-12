@@ -69,8 +69,8 @@ jobs:
 
       - name: Start application
         run: |
-          # Load test environment
-          export $(cat .env.test | xargs)
+          # Load test environment (filter out comments and empty lines)
+          export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
 
           # Start server in background
           npm start > server.log 2>&1 &
