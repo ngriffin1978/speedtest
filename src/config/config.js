@@ -25,7 +25,7 @@ const config = {
     // Rate limiting
     rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 60000, // 1 minute
     rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-    rateLimitPerIpConcurrent: parseInt(process.env.RATE_LIMIT_PER_IP_CONCURRENT) || 3,
+    rateLimitPerIpConcurrent: parseInt(process.env.RATE_LIMIT_PER_IP_CONCURRENT) || 10,
     
     // Diagnostics
     enableDiagnostics: process.env.ENABLE_DIAGNOSTICS === 'true',
