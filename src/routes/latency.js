@@ -10,18 +10,85 @@ const logger = require('../utils/logger');
 
 /**
  * HTTP ping endpoint
- * GET /api/latency/ping
+ * GET /api/latency/ping?count=N
+ * Performs multiple latency measurements and returns statistics
  */
-router.get('/ping', (req, res) => {
-    const timestamp = Date.now();
-    
-    res.json({
-        pong: true,
-        timestamp,
+router.get('/ping', async (req, res) => {
+    const count = Math.min(parseInt(req.query.count) || 1, 100); // max 100 pings
+    const measurements = [];
+
+    // If count is 1, return simple pong response for backward compatibility
+    if (count === 1) {
+        const timestamp = Date.now();
+        return res.json({
+            pong: true,
+            timestamp,
+            transport: req.transport,
+            port: req.transportPort,
+            serverTime: new Date().toISOString()
+        });
+    }
+
+    // Perform multiple measurements
+    logger.info('Starting latency ping test', {
+        transport: req.transport,
+        count,
+        clientIp: req.ip
+    });
+
+    const startTime = Date.now();
+
+    for (let i = 0; i < count; i++) {
+        const measurementStart = Date.now();
+
+        // Simulate minimal processing delay to get realistic timing
+        await new Promise(resolve => setImmediate(resolve));
+
+        const measurementEnd = Date.now();
+        const latency = measurementEnd - measurementStart;
+
+        measurements.push({
+            sequence: i,
+            timestamp: measurementStart,
+            latency: latency,
+            serverTime: new Date(measurementStart).toISOString()
+        });
+
+        // Small delay between measurements (10ms)
+        if (i < count - 1) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+    }
+
+    const endTime = Date.now();
+    const totalDuration = endTime - startTime;
+
+    // Calculate average latency
+    const avgLatency = measurements.reduce((sum, m) => sum + m.latency, 0) / measurements.length;
+    const minLatency = Math.min(...measurements.map(m => m.latency));
+    const maxLatency = Math.max(...measurements.map(m => m.latency));
+
+    const response = {
+        measurements,
+        count,
+        avgLatency,
+        minLatency,
+        maxLatency,
+        totalDuration,
         transport: req.transport,
         port: req.transportPort,
-        serverTime: new Date().toISOString()
+        timestamp: new Date().toISOString()
+    };
+
+    logger.logTestResult({
+        testType: 'latency-ping',
+        transport: req.transport,
+        count,
+        avgLatency: avgLatency.toFixed(2),
+        duration: totalDuration
     });
+
+    res.json(response);
 });
 
 /**
