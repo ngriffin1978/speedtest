@@ -13,6 +13,10 @@ const cors = require('cors');
 const path = require('path');
 const { createServer } = require('http');
 const { WebSocketServer } = require('ws');
+const { EventEmitter } = require('events');
+
+// Increase default max listeners to prevent warnings during concurrent compressed streams
+EventEmitter.defaultMaxListeners = 20;
 
 const config = require('./config/config');
 const logger = require('./utils/logger');
