@@ -77,19 +77,39 @@ class TestEngine {
      * Basic mode test flow
      */
     async runBasicMode(config) {
-        this.updateProgress('Measuring idle latency...', 0);
-        await this.testIdleLatency(config.transport);
+        const isMobile = Utils.isMobileDevice();
 
-        this.updateProgress('Testing download speed (single stream)...', 20);
-        await this.testDownloadSingle(config.transport, 15);
+        if (isMobile) {
+            // Simplified mobile test to avoid quota errors
+            this.log('Mobile device: running simplified test (single stream only, 3s duration)', 'info');
 
-        this.updateProgress('Testing download speed (multi-stream)...', 40);
-        await this.testDownloadMulti(config.transport, 4, 15);
+            this.updateProgress('Measuring idle latency...', 0);
+            await this.testIdleLatency(config.transport);
 
-        this.updateProgress('Testing upload speed...', 70);
-        await this.testUpload(config.transport, config.uploadMethod, config.uploadFile);
+            this.updateProgress('Testing download speed...', 30);
+            await this.testDownloadSingle(config.transport, 3);  // Only 3 seconds
 
-        this.updateProgress('Test complete', 100);
+            this.updateProgress('Testing upload speed...', 70);
+            await this.testUpload(config.transport, config.uploadMethod, config.uploadFile);
+
+            this.updateProgress('Test complete', 100);
+            this.log('Mobile test complete. For full testing, use a desktop browser.', 'info');
+        } else {
+            // Full desktop test
+            this.updateProgress('Measuring idle latency...', 0);
+            await this.testIdleLatency(config.transport);
+
+            this.updateProgress('Testing download speed (single stream)...', 20);
+            await this.testDownloadSingle(config.transport, 15);
+
+            this.updateProgress('Testing download speed (multi-stream)...', 40);
+            await this.testDownloadMulti(config.transport, 4, 15);
+
+            this.updateProgress('Testing upload speed...', 70);
+            await this.testUpload(config.transport, config.uploadMethod, config.uploadFile);
+
+            this.updateProgress('Test complete', 100);
+        }
     }
 
     /**
@@ -166,35 +186,53 @@ class TestEngine {
     async testDownloadSingle(transport, duration = 20) {
         const port = Utils.getPortForTransport(transport);
         const url = `http://${window.location.hostname}:${port}/api/download/single?duration=${duration}`;
-        
+
         const startTime = performance.now();
         let bytesReceived = 0;
         const throughputSamples = [];
+        const isMobile = Utils.isMobileDevice();
+        const maxSamples = isMobile ? 10 : 50;  // Limit samples on mobile to reduce memory
 
         const response = await fetch(url, { signal: this.abortController.signal });
         const reader = response.body.getReader();
 
         let lastUpdate = startTime;
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            bytesReceived += value.length;
-            const now = performance.now();
-            const elapsed = (now - startTime) / 1000;
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            // Update throughput every 500ms
-            if (now - lastUpdate >= 500) {
-                const mbps = Utils.calculateThroughput(bytesReceived, elapsed);
-                throughputSamples.push(mbps);
-                this.updateMetric('download-speed', mbps.toFixed(0));
-                lastUpdate = now;
+                bytesReceived += value.length;
+                const now = performance.now();
+                const elapsed = (now - startTime) / 1000;
+
+                // Update throughput every 500ms (or 1000ms on mobile)
+                const updateInterval = isMobile ? 1000 : 500;
+                if (now - lastUpdate >= updateInterval) {
+                    const mbps = Utils.calculateThroughput(bytesReceived, elapsed);
+
+                    // Limit samples array size on mobile
+                    if (throughputSamples.length >= maxSamples) {
+                        throughputSamples.shift();  // Remove oldest sample
+                    }
+                    throughputSamples.push(mbps);
+
+                    this.updateMetric('download-speed', mbps.toFixed(0));
+                    lastUpdate = now;
+                }
+
+                if (this.abortController.signal.aborted) {
+                    reader.cancel();
+                    throw new DOMException('Aborted', 'AbortError');
+                }
             }
-
-            if (this.abortController.signal.aborted) {
-                reader.cancel();
-                throw new DOMException('Aborted', 'AbortError');
+        } finally {
+            // Ensure reader is properly closed
+            try {
+                reader.releaseLock();
+            } catch (e) {
+                // Already released
             }
         }
 
@@ -216,6 +254,21 @@ class TestEngine {
      * Test multi-stream download
      */
     async testDownloadMulti(transport, streams = 4, duration = 20) {
+        const isMobile = Utils.isMobileDevice();
+
+        // Skip multi-stream on mobile to avoid quota errors
+        if (isMobile) {
+            this.log('Multi-stream test skipped on mobile (quota limitations)', 'info');
+            this.results.download.multiStream = {
+                streams: 0,
+                requestedStreams: streams,
+                duration: 0,
+                skipped: true
+            };
+            return;
+        }
+
+        // Desktop: run full multi-stream test
         const promises = [];
         const startTime = performance.now();
 
@@ -230,6 +283,7 @@ class TestEngine {
 
         this.results.download.multiStream = {
             streams,
+            requestedStreams: streams,
             duration: totalDuration
         };
 
@@ -250,8 +304,9 @@ class TestEngine {
             data = file;
             size = file.size;
         } else {
-            // Generate 50MB of random data
-            size = 50 * 1024 * 1024;
+            // Use very small upload size on mobile to avoid quota errors
+            const isMobile = Utils.isMobileDevice();
+            size = isMobile ? 2 * 1024 * 1024 : 50 * 1024 * 1024;  // 2MB mobile, 50MB desktop
             data = Utils.generateRandomData(size);
         }
 

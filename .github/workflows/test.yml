@@ -1,0 +1,154 @@
+name: Playwright E2E Tests
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+jobs:
+  test:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run tests with different configurations
+        node-version: [18, 20]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Create test environment file
+        run: |
+          cat > .env.test << EOF
+          # Test environment configuration
+          NODE_ENV=test
+          DATA_CENTER_ID=CI-GITHUB-${{ github.run_number }}
+
+          # Ports
+          GOLD_PORT=8888
+          SILVER_PORT=8889
+
+          # Higher limits for CI testing
+          MAX_CONCURRENT_TESTS=50
+          MAX_TEST_DURATION=600
+          MAX_UPLOAD_SIZE=262144000
+
+          # Relaxed rate limiting for tests
+          RATE_LIMIT_WINDOW=60000
+          RATE_LIMIT_MAX_REQUESTS=1000
+          RATE_LIMIT_PER_IP_CONCURRENT=20
+
+          # Diagnostics disabled in CI
+          ENABLE_DIAGNOSTICS=false
+
+          # Logging
+          LOG_LEVEL=info
+          EOF
+
+      - name: Start application
+        run: |
+          # Load test environment
+          export $(cat .env.test | xargs)
+
+          # Start server in background
+          npm start > server.log 2>&1 &
+          echo $! > server.pid
+
+          # Wait for server to be ready
+          echo "Waiting for servers to start..."
+          sleep 5
+
+      - name: Wait for services to be healthy
+        run: |
+          # Wait for both ports to respond
+          timeout 30 bash -c 'until curl -f http://localhost:8888/health > /dev/null 2>&1; do sleep 1; done'
+          timeout 30 bash -c 'until curl -f http://localhost:8889/health > /dev/null 2>&1; do sleep 1; done'
+
+          echo "✅ Gold port (8888) is healthy"
+          echo "✅ Silver port (8889) is healthy"
+
+      - name: Verify server configuration
+        run: |
+          echo "Checking server endpoints..."
+          curl -s http://localhost:8888/health | jq '.'
+          curl -s http://localhost:8889/health | jq '.'
+          curl -s http://localhost:8888/api/test/info | jq '.'
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-node-${{ matrix.node-version }}
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-traces-node-${{ matrix.node-version }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs-node-${{ matrix.node-version }}
+          path: server.log
+          retention-days: 7
+
+      - name: Display test summary
+        if: always()
+        run: |
+          if [ -f playwright-report/index.html ]; then
+            echo "📊 Test report generated successfully"
+            echo "View artifacts in the Actions tab"
+          fi
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) 2>/dev/null || true
+          fi
+          # Kill any remaining node processes
+          pkill -f "node src/server.js" || true
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Node Version**: ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ **Status**: All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status**: Some tests failed" >> $GITHUB_STEP_SUMMARY
+          fi

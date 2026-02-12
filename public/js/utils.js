@@ -164,6 +164,24 @@ const Utils = {
      */
     validateFileSize(file, maxSize = 250 * 1024 * 1024) {
         return file.size <= maxSize;
+    },
+
+    /**
+     * Detect if running on mobile device
+     */
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    },
+
+    /**
+     * Get optimal number of streams based on device
+     */
+    getOptimalStreamCount(requestedStreams) {
+        if (this.isMobileDevice()) {
+            // Limit to 2 streams on mobile to avoid quota errors
+            return Math.min(requestedStreams, 2);
+        }
+        return requestedStreams;
     }
 };
 

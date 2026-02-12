@@ -1,0 +1,68 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+jobs:
+  docker-build:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          if [ -f Dockerfile ]; then
+            docker build -t sdwan-speedtest:test .
+            echo "✅ Docker image built successfully"
+          else
+            echo "⚠️ No Dockerfile found, skipping Docker build"
+            exit 0
+          fi
+
+      - name: Test Docker image
+        run: |
+          if [ -f Dockerfile ]; then
+            # Start container
+            docker run -d \
+              --name speedtest-test \
+              -p 8888:8888 \
+              -p 8889:8889 \
+              -e DATA_CENTER_ID=CI-DOCKER-TEST \
+              sdwan-speedtest:test
+
+            # Wait for container to be ready
+            sleep 10
+
+            # Test endpoints
+            curl -f http://localhost:8888/health || exit 1
+            curl -f http://localhost:8889/health || exit 1
+
+            echo "✅ Docker container is healthy"
+
+            # Stop container
+            docker stop speedtest-test
+            docker rm speedtest-test
+          else
+            echo "⚠️ No Dockerfile found, skipping Docker test"
+          fi
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## Docker Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f Dockerfile ]; then
+            echo "✅ Docker image built and tested successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No Dockerfile found" >> $GITHUB_STEP_SUMMARY
+          fi

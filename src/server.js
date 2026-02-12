@@ -9,6 +9,7 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
+const cors = require('cors');
 const path = require('path');
 const { createServer } = require('http');
 const { WebSocketServer } = require('ws');
@@ -24,6 +25,7 @@ const uploadRoutes = require('./routes/upload');
 const latencyRoutes = require('./routes/latency');
 const diagnosticsRoutes = require('./routes/diagnostics');
 const healthRoutes = require('./routes/health');
+const testInfoRoutes = require('./routes/testInfo');
 
 /**
  * Create and configure Express app
@@ -39,9 +41,17 @@ function createApp() {
                 scriptSrc: ["'self'", "'unsafe-inline'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 imgSrc: ["'self'", "data:"],
-                connectSrc: ["'self'", "ws:", "wss:"]
+                // Allow connections to both Gold (8888) and Silver (8889) ports
+                connectSrc: ["'self'", "http://*:8888", "http://*:8889", "ws://*:8888", "ws://*:8889"],
+                upgradeInsecureRequests: null  // Disable upgrade-insecure-requests
             }
         }
+    }));
+
+    // CORS - Allow cross-origin requests between Gold (8888) and Silver (8889) ports
+    app.use(cors({
+        origin: true,  // Allow all origins (needed for testing between ports)
+        credentials: true
     }));
 
     // Compression
@@ -65,6 +75,7 @@ function createApp() {
     app.use('/api/upload', uploadRoutes);
     app.use('/api/latency', latencyRoutes);
     app.use('/api/diagnostics', diagnosticsRoutes);
+    app.use('/api/test/info', testInfoRoutes);
     app.use('/health', healthRoutes);
 
     // Root endpoint - serve main UI
@@ -107,14 +118,35 @@ function startServer(port, transportName) {
     });
 
     wss.on('connection', (ws, req) => {
-        const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || 
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0] ||
                         req.socket.remoteAddress;
-        
-        logger.info(`WebSocket connection established from ${clientIp} on ${transportName}`);
+
+        // Determine transport type based on port
+        const socketPort = req.socket.localPort;
+        const transport = socketPort === config.goldPort ? 'gold' :
+                         socketPort === config.silverPort ? 'silver' : 'unknown';
+
+        logger.info(`WebSocket connection established from ${clientIp} on ${transportName} (port ${socketPort})`);
 
         ws.on('message', (message) => {
-            // Echo back for latency measurement
-            ws.send(message);
+            try {
+                // Try to parse as JSON
+                const data = JSON.parse(message.toString());
+
+                // Echo back with transport information
+                const response = {
+                    ...data,
+                    type: data.type === 'ping' ? 'pong' : data.type,
+                    transport: transport,
+                    timestamp: data.timestamp,
+                    serverTimestamp: Date.now()
+                };
+
+                ws.send(JSON.stringify(response));
+            } catch (e) {
+                // If not JSON, just echo back as-is
+                ws.send(message);
+            }
         });
 
         ws.on('error', (error) => {

@@ -22,20 +22,21 @@ services:
       - RATE_LIMIT_MAX_REQUESTS=100
       - DATA_CENTER_ID=DC1-SJC
     
-    volumes:
-      # Mount logs directory (optional)
-      - ./logs:/app/logs
-    
+    # volumes:
+      # Logs are written to stdout for container log aggregation
+      # If you need persistent logs, uncomment and remove /app/logs from tmpfs
+      # - ./logs:/app/logs
+
     restart: unless-stopped
     
     # Resource limits
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: '2'
           memory: 4G
         reservations:
-          cpus: '2'
+          cpus: '1'
           memory: 2G
     
     # Health check

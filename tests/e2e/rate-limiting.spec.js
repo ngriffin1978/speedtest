@@ -89,7 +89,7 @@ test.describe('Security Headers', () => {
 test.describe('Input Validation', () => {
   test('should validate download duration parameter', async ({ request }) => {
     // Try exceeding max duration
-    const response = await request.get('http://localhost:8888/api/test/download', {
+    const response = await request.get('http://localhost:8888/api/download/single', {
       params: {
         duration: 9999, // Exceeds MAX_TEST_DURATION
       },
@@ -105,7 +105,7 @@ test.describe('Input Validation', () => {
     // Try uploading data larger than MAX_UPLOAD_SIZE (250MB)
     const largeData = Buffer.alloc(1048576); // 1MB test
 
-    const response = await request.post('http://localhost:8888/api/test/upload', {
+    const response = await request.post('http://localhost:8888/api/upload', {
       data: largeData,
     });
 
@@ -114,7 +114,7 @@ test.describe('Input Validation', () => {
   });
 
   test('should reject invalid parameters', async ({ request }) => {
-    const response = await request.get('http://localhost:8888/api/test/download', {
+    const response = await request.get('http://localhost:8888/api/download/single', {
       params: {
         duration: -1, // Invalid negative duration
       },
@@ -131,7 +131,7 @@ test.describe('Concurrent Test Enforcement', () => {
   test('should track concurrent tests per IP', async ({ request }) => {
     // Start multiple tests simultaneously
     const promises = Array(4).fill(0).map((_, i) =>
-      request.get(`http://localhost:8888/api/test/download?duration=3&_=${i}`, {
+      request.get(`http://localhost:8888/api/download/single?duration=3&_=${i}`, {
         timeout: 8000,
       }).catch(err => ({ error: true, message: err.message }))
     );

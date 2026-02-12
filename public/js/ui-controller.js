@@ -288,7 +288,9 @@ class UIController {
     updateMetric(metricId, value) {
         const element = document.getElementById(metricId);
         if (element) {
-            element.innerHTML = `${value}<span class="metric-unit">Mbps</span>`;
+            // Use correct units based on metric type
+            const unit = (metricId === 'latency-idle' || metricId === 'jitter') ? 'ms' : 'Mbps';
+            element.innerHTML = `${value}<span class="metric-unit">${unit}</span>`;
         }
     }
 
