@@ -36,22 +36,23 @@ router.get('/ping', async (req, res) => {
         clientIp: req.ip
     });
 
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
 
     for (let i = 0; i < count; i++) {
-        const measurementStart = Date.now();
+        const measurementStart = process.hrtime.bigint();
 
         // Simulate minimal processing delay to get realistic timing
         await new Promise(resolve => setImmediate(resolve));
 
-        const measurementEnd = Date.now();
-        const latency = measurementEnd - measurementStart;
+        const measurementEnd = process.hrtime.bigint();
+        // Convert nanoseconds to milliseconds with precision
+        const latency = Number(measurementEnd - measurementStart) / 1000000;
 
         measurements.push({
             sequence: i,
-            timestamp: measurementStart,
-            latency: latency,
-            serverTime: new Date(measurementStart).toISOString()
+            timestamp: Date.now(),
+            latency: Number(latency.toFixed(3)), // Round to 3 decimal places (microseconds)
+            serverTime: new Date().toISOString()
         });
 
         // Small delay between measurements (10ms)
@@ -60,8 +61,8 @@ router.get('/ping', async (req, res) => {
         }
     }
 
-    const endTime = Date.now();
-    const totalDuration = endTime - startTime;
+    const endTime = process.hrtime.bigint();
+    const totalDuration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
 
     // Calculate average latency
     const avgLatency = measurements.reduce((sum, m) => sum + m.latency, 0) / measurements.length;
@@ -71,10 +72,10 @@ router.get('/ping', async (req, res) => {
     const response = {
         measurements,
         count,
-        avgLatency,
-        minLatency,
-        maxLatency,
-        totalDuration,
+        avgLatency: Number(avgLatency.toFixed(3)),
+        minLatency: Number(minLatency.toFixed(3)),
+        maxLatency: Number(maxLatency.toFixed(3)),
+        totalDuration: Number(totalDuration.toFixed(2)),
         transport: req.transport,
         port: req.transportPort,
         timestamp: new Date().toISOString()
