@@ -33,12 +33,12 @@ const globalLimiter = rateLimit({
 // Strict rate limiter for heavy endpoints (upload, download)
 const testLimiter = rateLimit({
     windowMs: config.rateLimitWindow,
-    max: 10, // Much stricter for actual tests
+    max: 30, // Increased to accommodate multi-stream tests (4-8 parallel streams + sequential tests)
     message: {
         error: 'Too many test requests. Please wait before starting another test.',
         retryAfter: Math.ceil(config.rateLimitWindow / 1000)
     },
-    skipSuccessfulRequests: false
+    skipSuccessfulRequests: true // Don't count successfully completed tests
 });
 
 // Concurrent request tracker

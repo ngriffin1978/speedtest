@@ -124,11 +124,31 @@ const Utils = {
 
     /**
      * Generate random bytes for upload testing
+     * Chunks generation to respect browser's 64KB limit on crypto.getRandomValues()
      */
     generateRandomData(sizeInBytes) {
-        const array = new Uint8Array(sizeInBytes);
-        crypto.getRandomValues(array);
-        return array.buffer;
+        const CHUNK_SIZE = 65536; // 64KB - max size for crypto.getRandomValues()
+        const chunks = [];
+        let remaining = sizeInBytes;
+
+        // Generate data in chunks
+        while (remaining > 0) {
+            const chunkSize = Math.min(CHUNK_SIZE, remaining);
+            const chunk = new Uint8Array(chunkSize);
+            crypto.getRandomValues(chunk);
+            chunks.push(chunk);
+            remaining -= chunkSize;
+        }
+
+        // Combine all chunks into a single ArrayBuffer
+        const result = new Uint8Array(sizeInBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        return result.buffer;
     },
 
     /**
