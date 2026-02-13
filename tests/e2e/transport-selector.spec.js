@@ -4,40 +4,36 @@ test.describe('Transport Selector UI', () => {
   test('should display transport selector on page load', async ({ page }) => {
     await page.goto('http://127.0.0.1:8888');
 
-    // Check for transport selector buttons/dropdown
-    const transportSelector = page.locator('[data-testid="transport-selector"], #transportSelector, select[name="transport"]');
+    // Check for transport selector buttons
+    const transportSelector = page.locator('button[data-transport]');
     await expect(transportSelector.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should allow selecting Gold transport', async ({ page }) => {
     await page.goto('http://127.0.0.1:8888');
 
-    // Try different possible selector patterns
-    const goldButton = page.locator('button:has-text("Gold"), input[value="gold"], option[value="gold"]');
-
-    if (await goldButton.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-      await goldButton.first().click();
-    }
+    // Click the Gold transport button
+    const goldButton = page.locator('button[data-transport="gold"]');
+    await expect(goldButton).toBeVisible();
+    await goldButton.click();
   });
 
   test('should allow selecting Silver transport', async ({ page }) => {
     await page.goto('http://127.0.0.1:8889');
 
-    const silverButton = page.locator('button:has-text("Silver"), input[value="silver"], option[value="silver"]');
-
-    if (await silverButton.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-      await silverButton.first().click();
-    }
+    // Click the Silver transport button
+    const silverButton = page.locator('button[data-transport="silver"]');
+    await expect(silverButton).toBeVisible();
+    await silverButton.click();
   });
 
   test('should allow selecting Both transports', async ({ page }) => {
     await page.goto('http://127.0.0.1:8888');
 
-    const bothButton = page.locator('button:has-text("Both"), input[value="both"], option[value="both"]');
-
-    if (await bothButton.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-      await bothButton.first().click();
-    }
+    // Click the Both transport button
+    const bothButton = page.locator('button[data-transport="both"]');
+    await expect(bothButton).toBeVisible();
+    await bothButton.click();
   });
 
   test('should display transport type on page', async ({ page }) => {
