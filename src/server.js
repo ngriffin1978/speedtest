@@ -16,7 +16,8 @@ const { WebSocketServer } = require('ws');
 const { EventEmitter } = require('events');
 
 // Increase default max listeners to prevent warnings during concurrent compressed streams
-EventEmitter.defaultMaxListeners = 20;
+// CI tests run many concurrent downloads with compression, which can accumulate drain listeners
+EventEmitter.defaultMaxListeners = 50;
 
 const config = require('./config/config');
 const logger = require('./utils/logger');
