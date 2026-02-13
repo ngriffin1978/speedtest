@@ -6,7 +6,7 @@ const WebSocket = require('ws');
  */
 async function testWebSocketLatency(port, expectedTransport) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://localhost:${port}/ws/latency`);
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/latency`);
     const measurements = [];
     let messageCount = 0;
     const maxMessages = 5;
