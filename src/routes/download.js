@@ -35,7 +35,14 @@ router.get('/single', (req, res) => {
         });
     }
 
-    const duration = Math.min(requestedDuration, 120); // max 120 seconds
+    if (requestedDuration > 120) {
+        return res.status(400).json({
+            error: 'Invalid duration',
+            message: 'Duration cannot exceed 120 seconds'
+        });
+    }
+
+    const duration = requestedDuration;
     const chunkSize = Math.min(parseInt(req.query.chunkSize) || 65536, 1048576); // max 1MB chunks
 
     const startTime = Date.now();
