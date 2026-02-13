@@ -111,7 +111,7 @@ test.describe('WebSocket Latency Tests', () => {
 
     // Check that all latencies are reasonable
     result.measurements.forEach(m => {
-      expect(m.latency).toBeGreaterThan(0);
+      expect(m.latency).toBeGreaterThanOrEqual(0); // Can be 0 on very fast localhost
       expect(m.latency).toBeLessThan(500); // Should be under 500ms for localhost
     });
 
