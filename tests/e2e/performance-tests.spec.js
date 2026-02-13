@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Download Tests on Both Ports', () => {
   test('should perform download test on Gold port', async ({ request }) => {
-    const response = await request.get('http://localhost:8888/api/download/single', {
+    const response = await request.get('http://127.0.0.1:8888/api/download/single', {
       params: {
         duration: 5,
         chunkSize: 1048576, // 1MB chunks
@@ -19,7 +19,7 @@ test.describe('Download Tests on Both Ports', () => {
   });
 
   test('should perform download test on Silver port', async ({ request }) => {
-    const response = await request.get('http://localhost:8889/api/download/single', {
+    const response = await request.get('http://127.0.0.1:8889/api/download/single', {
       params: {
         duration: 5,
         chunkSize: 1048576,
@@ -37,7 +37,7 @@ test.describe('Download Tests on Both Ports', () => {
 
   test('should stream data without buffering entire response', async ({ request }) => {
     const startTime = Date.now();
-    const response = await request.get('http://localhost:8888/api/download/single', {
+    const response = await request.get('http://127.0.0.1:8888/api/download/single', {
       params: {
         duration: 3,
         chunkSize: 524288, // 512KB chunks
@@ -58,7 +58,7 @@ test.describe('Download Tests on Both Ports', () => {
     const duration = 2;
     const startTime = Date.now();
 
-    const response = await request.get('http://localhost:8888/api/download/single', {
+    const response = await request.get('http://127.0.0.1:8888/api/download/single', {
       params: { duration, chunkSize: 1048576 },
       timeout: 5000,
     });
@@ -76,7 +76,7 @@ test.describe('Upload Tests on Both Ports', () => {
   test('should perform upload test on Gold port', async ({ request }) => {
     const uploadData = Buffer.alloc(1048576, 'a'); // 1MB of data
 
-    const response = await request.post('http://localhost:8888/api/upload', {
+    const response = await request.post('http://127.0.0.1:8888/api/upload', {
       data: uploadData,
       headers: {
         'Content-Type': 'application/octet-stream',
@@ -95,7 +95,7 @@ test.describe('Upload Tests on Both Ports', () => {
   test('should perform upload test on Silver port', async ({ request }) => {
     const uploadData = Buffer.alloc(1048576, 'a');
 
-    const response = await request.post('http://localhost:8889/api/upload', {
+    const response = await request.post('http://127.0.0.1:8889/api/upload', {
       data: uploadData,
       headers: {
         'Content-Type': 'application/octet-stream',
@@ -114,7 +114,7 @@ test.describe('Upload Tests on Both Ports', () => {
   test('should not persist uploaded data', async ({ request }) => {
     const uploadData = Buffer.alloc(524288, 'test-data');
 
-    const response = await request.post('http://localhost:8888/api/upload', {
+    const response = await request.post('http://127.0.0.1:8888/api/upload', {
       data: uploadData,
       timeout: 10000,
     });
@@ -130,7 +130,7 @@ test.describe('Upload Tests on Both Ports', () => {
 
 test.describe('Latency Tests on Both Ports', () => {
   test('should perform latency test on Gold port', async ({ request }) => {
-    const response = await request.get('http://localhost:8888/api/latency/ping', {
+    const response = await request.get('http://127.0.0.1:8888/api/latency/ping', {
       params: {
         count: 5,
       },
@@ -148,7 +148,7 @@ test.describe('Latency Tests on Both Ports', () => {
   });
 
   test('should perform latency test on Silver port', async ({ request }) => {
-    const response = await request.get('http://localhost:8889/api/latency/ping', {
+    const response = await request.get('http://127.0.0.1:8889/api/latency/ping', {
       params: {
         count: 5,
       },
@@ -168,7 +168,7 @@ test.describe('Latency Tests on Both Ports', () => {
 
 test.describe('Test Info Endpoint', () => {
   test('should provide test information on Gold port', async ({ request }) => {
-    const response = await request.get('http://localhost:8888/api/test/info');
+    const response = await request.get('http://127.0.0.1:8888/api/test/info');
 
     expect(response.status()).toBe(200);
     expect(response.headers()['x-transport-type']).toBe('gold');
@@ -180,7 +180,7 @@ test.describe('Test Info Endpoint', () => {
   });
 
   test('should provide test information on Silver port', async ({ request }) => {
-    const response = await request.get('http://localhost:8889/api/test/info');
+    const response = await request.get('http://127.0.0.1:8889/api/test/info');
 
     expect(response.status()).toBe(200);
     expect(response.headers()['x-transport-type']).toBe('silver');
@@ -196,7 +196,7 @@ test.describe('Concurrent Test Limits', () => {
   test('should enforce per-IP concurrent test limits', async ({ request }) => {
     // Start multiple download tests concurrently
     const promises = Array(5).fill(0).map(() =>
-      request.get('http://localhost:8888/api/download/single', {
+      request.get('http://127.0.0.1:8888/api/download/single', {
         params: { duration: 5 },
         timeout: 10000,
       }).catch(err => ({ error: true, status: err.response?.status() }))

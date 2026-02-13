@@ -143,7 +143,7 @@ test.describe('WebSocket Latency Tests', () => {
 test.describe('WebSocket Connection Upgrade', () => {
   test('should upgrade HTTP connection to WebSocket on Gold port', async ({ request }) => {
     // First, verify the endpoint exists with a regular HTTP request
-    const response = await request.get('http://localhost:8888/ws/latency').catch(err => err);
+    const response = await request.get('http://127.0.0.1:8888/ws/latency').catch(err => err);
 
     // Should get an upgrade required or similar response
     // The actual WebSocket upgrade happens with the WebSocket client
